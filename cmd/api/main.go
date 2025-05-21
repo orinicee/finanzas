@@ -5,8 +5,10 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/orinicee/finanzas/internal/application/auth"
 	"github.com/orinicee/finanzas/internal/application/user"
 	"github.com/orinicee/finanzas/internal/delivery/http"
+	"github.com/orinicee/finanzas/internal/delivery/http/middleware"
 	"github.com/orinicee/finanzas/internal/infrastructure/database"
 	"github.com/orinicee/finanzas/pkg/config"
 )
@@ -34,8 +36,10 @@ func main() {
 	// Inicializar manejador de usuarios
 	userHandler := http.NewUserHandler(userUseCase, userRepo)
 
+	authUseCase := auth.NewAuthUseCase(userRepo, cfg.JWTKey)
+
 	// Registrar rutas
-	userHandler.RegisterRoutes(router)
+	userHandler.RegisterRoutes(router, middleware.AuthMiddleware(authUseCase))
 
 	// Iniciar servidor
 	serverAddr := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)

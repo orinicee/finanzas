@@ -5,8 +5,13 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/orinicee/finanzas/internal/application/auth"
+	"github.com/orinicee/finanzas/internal/application/transaction"
 	"github.com/orinicee/finanzas/internal/application/user"
+	"github.com/orinicee/finanzas/internal/delivery/http/middleware"
+	"github.com/orinicee/finanzas/internal/domain"
 	"github.com/orinicee/finanzas/internal/infrastructure/database"
+	"github.com/orinicee/finanzas/internal/infrastructure/repository/postgres"
 	"github.com/orinicee/finanzas/pkg/config"
 )
 
@@ -29,18 +34,29 @@ func NewServer(cfg *config.Config, db *database.PostgresRepository) *Server {
 	// Inicializar casos de uso
 	userRepo := database.NewUserRepository(db.GetDB())
 	userUseCase := user.NewUserUseCase(userRepo)
+	authUseCase := auth.NewAuthUseCase(userRepo, cfg.JWTKey)
+	transactionRepo := postgres.NewTransactionRepository(db.GetDB())
+	transactionUseCase := transaction.NewTransactionUseCase(transactionRepo)
 
 	// Inicializar handlers
 	userHandler := NewUserHandler(userUseCase, userRepo)
+	authHandler := NewAuthHandler(authUseCase)
+	transactionHandler := NewTransactionHandler(transactionUseCase)
 
 	// Configurar rutas
-	server.setupRoutes(userHandler)
+	server.setupRoutes(userHandler, authHandler, transactionHandler, authUseCase, transactionUseCase)
 
 	return server
 }
 
 // setupRoutes configura las rutas del servidor
-func (s *Server) setupRoutes(userHandler *UserHandler) {
+func (s *Server) setupRoutes(
+	userHandler *UserHandler,
+	authHandler *AuthHandler,
+	transactionHandler *TransactionHandler,
+	authUseCase domain.AuthUseCase,
+	transactionUseCase domain.TransactionUseCase,
+) {
 	// Grupo de rutas API v1
 	v1 := s.router.Group("/api/v1")
 	{
@@ -51,8 +67,17 @@ func (s *Server) setupRoutes(userHandler *UserHandler) {
 			})
 		})
 
+		// Rutas de autenticación
+		authHandler.RegisterRoutes(s.router)
+
 		// Rutas de usuarios
-		userHandler.RegisterRoutes(s.router)
+		userHandler.RegisterRoutes(s.router, middleware.AuthMiddleware(authUseCase))
+
+		// Rutas de transacciones
+		transactionHandler.RegisterRoutes(s.router,
+			middleware.AuthMiddleware(authUseCase),
+			middleware.TransactionAuthMiddleware(transactionUseCase),
+		)
 	}
 }
 

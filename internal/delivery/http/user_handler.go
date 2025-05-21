@@ -51,14 +51,21 @@ func NewUserHandler(userUseCase domain.UserUseCase, userRepo domain.UserReposito
 	}
 }
 
-func (h *UserHandler) RegisterRoutes(router *gin.Engine) {
+// RegisterRoutes registra las rutas de usuarios
+func (h *UserHandler) RegisterRoutes(router *gin.Engine, authMiddleware gin.HandlerFunc) {
 	users := router.Group("/api/v1/users")
 	{
+		// Rutas públicas
 		users.POST("", h.CreateUser)
-		users.GET("/:id", h.GetUser)
-		users.PUT("/:id", h.UpdateUser)
-		users.DELETE("/:id", h.DeleteUser)
-		users.GET("", h.ListUsers)
+
+		// Rutas protegidas
+		protected := users.Group("")
+		protected.Use(authMiddleware)
+		{
+			protected.GET("/me", h.GetCurrentUser)
+			protected.PUT("/me", h.UpdateCurrentUser)
+			protected.DELETE("/me", h.DeleteCurrentUser)
+		}
 	}
 }
 
@@ -251,4 +258,65 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// GetCurrentUser maneja la obtención del usuario actual
+func (h *UserHandler) GetCurrentUser(c *gin.Context) {
+	user := c.MustGet("user").(*domain.User)
+
+	response := gin.H{
+		"id":              user.ID,
+		"full_name":       user.FullName,
+		"email":           user.Email,
+		"document_type":   user.DocumentType,
+		"document_number": user.DocumentNumber,
+		"tax_regime":      user.TaxRegime,
+		"person_type":     user.PersonType,
+		"city":            user.City,
+		"department":      user.Department,
+		"address":         user.Address,
+		"phone":           user.Phone,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// UpdateCurrentUser maneja la actualización del usuario actual
+func (h *UserHandler) UpdateCurrentUser(c *gin.Context) {
+	user := c.MustGet("user").(*domain.User)
+	var req UpdateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos"})
+		return
+	}
+
+	user.FullName = req.FullName
+	user.Email = req.Email
+	user.DocumentType = req.DocumentType
+	user.DocumentNumber = req.DocumentNumber
+	user.TaxRegime = req.TaxRegime
+	user.PersonType = req.PersonType
+	user.City = req.City
+	user.Department = req.Department
+	user.Address = req.Address
+	user.Phone = req.Phone
+
+	if err := h.userUseCase.UpdateUser(user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al actualizar usuario"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Usuario actualizado exitosamente"})
+}
+
+// DeleteCurrentUser maneja la eliminación del usuario actual
+func (h *UserHandler) DeleteCurrentUser(c *gin.Context) {
+	user := c.MustGet("user").(*domain.User)
+
+	if err := h.userUseCase.DeleteUser(user.ID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al eliminar usuario"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Usuario eliminado exitosamente"})
 }

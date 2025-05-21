@@ -11,6 +11,7 @@ import (
 type Config struct {
 	Port     string
 	Host     string
+	JWTKey   string
 	Database DatabaseConfig
 }
 
@@ -67,8 +68,9 @@ func Load() (*Config, error) {
 	}
 
 	config := &Config{
-		Port: getEnv("PORT", "8080"),
-		Host: getEnv("HOST", "localhost"),
+		Port:   getEnv("PORT", "8080"),
+		Host:   getEnv("HOST", "localhost"),
+		JWTKey: getEnv("JWT_KEY", "your-secret-key"),
 		Database: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
 			Port:     getEnv("DB_PORT", "5432"),

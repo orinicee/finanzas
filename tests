@@ -3,3 +3,9 @@ go test ./internal/application/auth/... -v
 
 // user_handler
 go test ./internal/delivery/http/... -v
+
+// transaction_repository
+go test -v ./internal/infrastructure/repository/postgres/...
+
+// Create test db
+psql -U postgres -c "CREATE DATABASE finanzas_test;"
