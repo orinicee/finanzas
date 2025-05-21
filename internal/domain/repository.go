@@ -14,17 +14,6 @@ type Repository interface {
 	Close() error
 }
 
-// UserRepository define la interfaz para las operaciones de usuarios
-type UserRepository interface {
-	Repository
-	Create(user *User) error
-	FindByID(id string) (*User, error)
-	FindByEmail(email string) (*User, error)
-	Update(user *User) error
-	Delete(id string) error
-	List() ([]*User, error)
-}
-
 // Transaction define la interfaz para manejar transacciones
 type Transaction interface {
 	// WithTransaction ejecuta una función dentro de una transacción

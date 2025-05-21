@@ -4,22 +4,12 @@ import (
 	"github.com/orinicee/finanzas/internal/domain"
 )
 
-// UserUseCase define las operaciones de negocio para usuarios
-type UserUseCase interface {
-	CreateUser(user *domain.User) error
-	GetUserByID(id string) (*domain.User, error)
-	GetUserByEmail(email string) (*domain.User, error)
-	UpdateUser(user *domain.User) error
-	DeleteUser(id string) error
-	ListUsers() ([]*domain.User, error)
-}
-
 type useCase struct {
 	userRepo domain.UserRepository
 }
 
-// NewUseCase crea una nueva instancia del caso de uso de usuarios
-func NewUserUseCase(userRepo domain.UserRepository) UserUseCase {
+// NewUserUseCase crea una nueva instancia del caso de uso de usuarios
+func NewUserUseCase(userRepo domain.UserRepository) domain.UserUseCase {
 	return &useCase{
 		userRepo: userRepo,
 	}

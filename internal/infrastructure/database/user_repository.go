@@ -1,6 +1,8 @@
 package database
 
 import (
+	"time"
+
 	"github.com/orinicee/finanzas/internal/domain"
 	"gorm.io/gorm"
 )
@@ -55,6 +57,15 @@ func (r *userRepository) FindByEmail(email string) (*domain.User, error) {
 	return &user, nil
 }
 
+func (r *userRepository) FindBySocialID(provider domain.AuthProvider, socialID string) (*domain.User, error) {
+	var user domain.User
+	err := r.db.First(&user, "provider = ? AND social_id = ?", provider, socialID).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 func (r *userRepository) Update(user *domain.User) error {
 	return r.db.Save(user).Error
 }
@@ -70,4 +81,37 @@ func (r *userRepository) List() ([]*domain.User, error) {
 		return nil, err
 	}
 	return users, nil
+}
+
+// Métodos para manejo de refresh tokens
+type refreshToken struct {
+	Token     string `gorm:"primaryKey"`
+	UserID    string `gorm:"index"`
+	ExpiresAt time.Time
+}
+
+func (r *userRepository) SaveRefreshToken(userID string, token string, expiresAt time.Time) error {
+	// Auto-migrar la tabla de refresh tokens
+	if err := r.db.AutoMigrate(&refreshToken{}); err != nil {
+		return err
+	}
+
+	return r.db.Create(&refreshToken{
+		Token:     token,
+		UserID:    userID,
+		ExpiresAt: expiresAt,
+	}).Error
+}
+
+func (r *userRepository) GetRefreshToken(token string) (string, error) {
+	var rt refreshToken
+	err := r.db.First(&rt, "token = ? AND expires_at > ?", token, time.Now()).Error
+	if err != nil {
+		return "", err
+	}
+	return rt.UserID, nil
+}
+
+func (r *userRepository) DeleteRefreshToken(token string) error {
+	return r.db.Delete(&refreshToken{}, "token = ?", token).Error
 }

@@ -2,28 +2,27 @@ package domain
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
-// User representa la entidad de usuario en el dominio
+// User representa un usuario en el sistema
 type User struct {
-	ID               string     `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	FullName         string     `json:"full_name" gorm:"not null"`
-	Email            string     `json:"email" gorm:"uniqueIndex;not null"`
-	PasswordHash     string     `json:"-" gorm:"not null"`
-	DocumentType     string     `json:"document_type" gorm:"not null"`
-	DocumentNumber   string     `json:"document_number" gorm:"not null"`
-	TaxRegime        string     `json:"tax_regime" gorm:"not null"`
-	PersonType       string     `json:"person_type" gorm:"not null"`
-	CIIUCode         string     `json:"ciiu_code"`
-	City             string     `json:"city" gorm:"not null"`
-	Department       string     `json:"department" gorm:"not null"`
-	Address          string     `json:"address" gorm:"not null"`
-	Phone            string     `json:"phone" gorm:"not null"`
-	DateOfBirth      *time.Time `json:"date_of_birth"`
-	Subscribed       bool       `json:"subscribed" gorm:"default:false"`
-	Role             string     `json:"role" gorm:"not null;default:'user'"`
-	HasDianConsent   bool       `json:"has_dian_consent" gorm:"default:false"`
-	DianSignatureKey *string    `json:"dian_signature_key"`
-	CreatedAt        time.Time  `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt        time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
+	ID             string         `json:"id" gorm:"primaryKey"`
+	FullName       string         `json:"full_name"`
+	Email          string         `json:"email" gorm:"uniqueIndex"`
+	Password       string         `json:"-" gorm:"not null"` // El "-" evita que se serialice en JSON
+	DocumentType   string         `json:"document_type"`
+	DocumentNumber string         `json:"document_number"`
+	TaxRegime      string         `json:"tax_regime"`
+	PersonType     string         `json:"person_type"`
+	City           string         `json:"city"`
+	Department     string         `json:"department"`
+	Address        string         `json:"address"`
+	Phone          string         `json:"phone"`
+	SocialID       string         `json:"social_id,omitempty" gorm:"uniqueIndex"`
+	Provider       AuthProvider   `json:"provider,omitempty"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+	DeletedAt      gorm.DeletedAt `json:"-" gorm:"index"`
 }
