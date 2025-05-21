@@ -71,3 +71,11 @@ type TransactionUseCase interface {
 	GetRecurringTransactions(ctx context.Context, userID uuid.UUID) ([]*Transaction, error)
 	GetTaxDeductibleTransactions(ctx context.Context, userID uuid.UUID) ([]*Transaction, error)
 }
+
+// ReportRepository define la interfaz para el repositorio de reportes
+type ReportRepository interface {
+}
+
+// ReportUseCase define las operaciones de negocio para reportes
+type ReportUseCase interface {
+}
