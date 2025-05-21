@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/orinicee/finanzas/internal/domain"
 	"github.com/orinicee/finanzas/internal/infrastructure/database/migrations"
@@ -102,4 +103,56 @@ func (r *PostgresRepository) WithTransaction(ctx context.Context, fn func(tx *go
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		return fn(tx)
 	})
+}
+
+// FindBySocialID implementa el método de la interfaz UserRepository
+func (r *PostgresRepository) FindBySocialID(provider domain.AuthProvider, socialID string) (*domain.User, error) {
+	var user domain.User
+	if err := r.db.First(&user, "provider = ? AND social_id = ?", provider, socialID).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// SaveRefreshToken implementa el método de la interfaz UserRepository
+func (r *PostgresRepository) SaveRefreshToken(userID string, token string, expiresAt time.Time) error {
+	refreshToken := struct {
+		Token     string `gorm:"primaryKey"`
+		UserID    string `gorm:"index"`
+		ExpiresAt time.Time
+	}{
+		Token:     token,
+		UserID:    userID,
+		ExpiresAt: expiresAt,
+	}
+
+	// Auto-migrar la tabla de refresh tokens
+	if err := r.db.AutoMigrate(&refreshToken); err != nil {
+		return err
+	}
+
+	return r.db.Create(&refreshToken).Error
+}
+
+// GetRefreshToken implementa el método de la interfaz UserRepository
+func (r *PostgresRepository) GetRefreshToken(token string) (string, error) {
+	var refreshToken struct {
+		Token     string `gorm:"primaryKey"`
+		UserID    string `gorm:"index"`
+		ExpiresAt time.Time
+	}
+
+	if err := r.db.First(&refreshToken, "token = ? AND expires_at > ?", token, time.Now()).Error; err != nil {
+		return "", err
+	}
+	return refreshToken.UserID, nil
+}
+
+// DeleteRefreshToken implementa el método de la interfaz UserRepository
+func (r *PostgresRepository) DeleteRefreshToken(token string) error {
+	return r.db.Delete(&struct {
+		Token     string `gorm:"primaryKey"`
+		UserID    string `gorm:"index"`
+		ExpiresAt time.Time
+	}{}, "token = ?", token).Error
 }

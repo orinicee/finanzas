@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/orinicee/finanzas/internal/domain"
+	"github.com/orinicee/finanzas/internal/domain/messages"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"gorm.io/gorm"
@@ -110,6 +111,29 @@ func (m *MockUserRepository) Close() error {
 	return args.Error(0)
 }
 
+func (m *MockUserRepository) FindBySocialID(provider domain.AuthProvider, socialID string) (*domain.User, error) {
+	args := m.Called(provider, socialID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.User), args.Error(1)
+}
+
+func (m *MockUserRepository) SaveRefreshToken(userID string, token string, expiresAt time.Time) error {
+	args := m.Called(userID, token, expiresAt)
+	return args.Error(0)
+}
+
+func (m *MockUserRepository) GetRefreshToken(token string) (string, error) {
+	args := m.Called(token)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockUserRepository) DeleteRefreshToken(token string) error {
+	args := m.Called(token)
+	return args.Error(0)
+}
+
 func setupTestRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	return gin.Default()
@@ -139,15 +163,27 @@ func TestCreateUser(t *testing.T) {
 				"phone":           "1234567890",
 			},
 			mockSetup: func(uc *MockUserUseCase, repo *MockUserRepository) {
-				uc.On("CreateUser", mock.AnythingOfType("*domain.User")).Return(nil)
+				uc.On("CreateUser", mock.MatchedBy(func(user *domain.User) bool {
+					return user.Email == "test@example.com" &&
+						user.FullName == "Test User" &&
+						user.Password == "password123" &&
+						user.DocumentType == "CC" &&
+						user.DocumentNumber == "123456789" &&
+						user.TaxRegime == "Común" &&
+						user.PersonType == "Natural" &&
+						user.City == "Bogotá" &&
+						user.Department == "Cundinamarca" &&
+						user.Address == "Calle 123" &&
+						user.Phone == "1234567890"
+				})).Return(nil)
 			},
 			expectedStatus: http.StatusCreated,
 			expectedBody: map[string]interface{}{
-				"message": "Usuario creado exitosamente",
+				"message": messages.SuccessUserCreated,
 			},
 		},
 		{
-			name: "error al crear usuario - email duplicado",
+			name: "error al crear - email ya existe",
 			payload: map[string]interface{}{
 				"full_name":       "Test User",
 				"email":           "existing@example.com",
@@ -162,11 +198,73 @@ func TestCreateUser(t *testing.T) {
 				"phone":           "1234567890",
 			},
 			mockSetup: func(uc *MockUserUseCase, repo *MockUserRepository) {
-				uc.On("CreateUser", mock.AnythingOfType("*domain.User")).Return(domain.ErrEmailAlreadyExists)
+				uc.On("CreateUser", mock.MatchedBy(func(user *domain.User) bool {
+					return user.Email == "existing@example.com" &&
+						user.FullName == "Test User" &&
+						user.Password == "password123"
+				})).Return(domain.ErrEmailAlreadyExists)
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectedBody: map[string]interface{}{
-				"error": "El email ya está registrado",
+				"error": messages.ErrEmailAlreadyExists,
+			},
+		},
+		{
+			name: "error al crear - email inválido",
+			payload: map[string]interface{}{
+				"full_name": "Test User",
+				"email":     "invalid-email",
+				"password":  "password123",
+			},
+			mockSetup: func(uc *MockUserUseCase, repo *MockUserRepository) {
+				// No necesitamos configurar el mock porque el error debe ser manejado por el handler
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody: map[string]interface{}{
+				"error": messages.ErrInvalidEmailFormat,
+			},
+		},
+		{
+			name: "error al crear - contraseña muy corta",
+			payload: map[string]interface{}{
+				"full_name": "Test User",
+				"email":     "test@example.com",
+				"password":  "12345",
+			},
+			mockSetup: func(uc *MockUserUseCase, repo *MockUserRepository) {
+				// No necesitamos configurar el mock porque el error debe ser manejado por el handler
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody: map[string]interface{}{
+				"error": messages.ErrPasswordTooShort,
+			},
+		},
+		{
+			name: "error al crear - nombre faltante",
+			payload: map[string]interface{}{
+				"email":    "test@example.com",
+				"password": "password123",
+			},
+			mockSetup: func(uc *MockUserUseCase, repo *MockUserRepository) {
+				// No necesitamos configurar el mock porque el error debe ser manejado por el handler
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody: map[string]interface{}{
+				"error": messages.ErrRequiredFullName,
+			},
+		},
+		{
+			name: "error al crear - contraseña faltante",
+			payload: map[string]interface{}{
+				"full_name": "Test User",
+				"email":     "test@example.com",
+			},
+			mockSetup: func(uc *MockUserUseCase, repo *MockUserRepository) {
+				// No necesitamos configurar el mock porque el error debe ser manejado por el handler
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody: map[string]interface{}{
+				"error": messages.ErrRequiredPassword,
 			},
 		},
 	}
@@ -260,7 +358,7 @@ func TestGetUser(t *testing.T) {
 			},
 			expectedStatus: http.StatusNotFound,
 			expectedBody: map[string]interface{}{
-				"error": "Usuario no encontrado",
+				"error": messages.ErrUserNotFound,
 			},
 		},
 	}
@@ -314,15 +412,35 @@ func TestUpdateUser(t *testing.T) {
 			name:   "actualizar usuario exitosamente",
 			userID: "1",
 			payload: map[string]interface{}{
-				"full_name": "Updated User",
-				"email":     "updated@example.com",
+				"full_name":       "Updated User",
+				"email":           "updated@example.com",
+				"document_type":   "CC",
+				"document_number": "123456789",
+				"tax_regime":      "Común",
+				"person_type":     "Natural",
+				"city":            "Bogotá",
+				"department":      "Cundinamarca",
+				"address":         "Calle 123",
+				"phone":           "1234567890",
 			},
 			mockSetup: func(uc *MockUserUseCase, repo *MockUserRepository) {
-				uc.On("UpdateUser", mock.AnythingOfType("*domain.User")).Return(nil)
+				uc.On("UpdateUser", mock.MatchedBy(func(user *domain.User) bool {
+					return user.ID == "1" &&
+						user.Email == "updated@example.com" &&
+						user.FullName == "Updated User" &&
+						user.DocumentType == "CC" &&
+						user.DocumentNumber == "123456789" &&
+						user.TaxRegime == "Común" &&
+						user.PersonType == "Natural" &&
+						user.City == "Bogotá" &&
+						user.Department == "Cundinamarca" &&
+						user.Address == "Calle 123" &&
+						user.Phone == "1234567890"
+				})).Return(nil)
 			},
 			expectedStatus: http.StatusOK,
 			expectedBody: map[string]interface{}{
-				"message": "Usuario actualizado exitosamente",
+				"message": messages.SuccessUserUpdated,
 			},
 		},
 		{
@@ -333,11 +451,44 @@ func TestUpdateUser(t *testing.T) {
 				"email":     "updated@example.com",
 			},
 			mockSetup: func(uc *MockUserUseCase, repo *MockUserRepository) {
-				uc.On("UpdateUser", mock.AnythingOfType("*domain.User")).Return(domain.ErrUserNotFound)
+				uc.On("UpdateUser", mock.MatchedBy(func(user *domain.User) bool {
+					return user.ID == "999" &&
+						user.Email == "updated@example.com" &&
+						user.FullName == "Updated User"
+				})).Return(domain.ErrUserNotFound)
 			},
 			expectedStatus: http.StatusNotFound,
 			expectedBody: map[string]interface{}{
-				"error": "Usuario no encontrado",
+				"error": messages.ErrUserNotFound,
+			},
+		},
+		{
+			name:   "error al actualizar - email inválido",
+			userID: "1",
+			payload: map[string]interface{}{
+				"full_name": "Updated User",
+				"email":     "invalid-email",
+			},
+			mockSetup: func(uc *MockUserUseCase, repo *MockUserRepository) {
+				// No necesitamos configurar el mock porque el error debe ser manejado por el handler
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody: map[string]interface{}{
+				"error": messages.ErrInvalidEmailFormat,
+			},
+		},
+		{
+			name:   "error al actualizar - nombre faltante",
+			userID: "1",
+			payload: map[string]interface{}{
+				"email": "updated@example.com",
+			},
+			mockSetup: func(uc *MockUserUseCase, repo *MockUserRepository) {
+				// No necesitamos configurar el mock porque el error debe ser manejado por el handler
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody: map[string]interface{}{
+				"error": messages.ErrRequiredFullName,
 			},
 		},
 	}
@@ -396,7 +547,7 @@ func TestDeleteUser(t *testing.T) {
 			},
 			expectedStatus: http.StatusOK,
 			expectedBody: map[string]interface{}{
-				"message": "Usuario eliminado exitosamente",
+				"message": messages.SuccessUserDeleted,
 			},
 		},
 		{
@@ -407,7 +558,7 @@ func TestDeleteUser(t *testing.T) {
 			},
 			expectedStatus: http.StatusNotFound,
 			expectedBody: map[string]interface{}{
-				"error": "Usuario no encontrado",
+				"error": messages.ErrUserNotFound,
 			},
 		},
 	}

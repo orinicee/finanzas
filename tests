@@ -1,0 +1,5 @@
+// login, register, logout
+go test ./internal/application/auth/... -v
+
+// user_handler
+go test ./internal/delivery/http/... -v
