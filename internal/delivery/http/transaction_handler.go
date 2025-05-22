@@ -20,8 +20,8 @@ func NewTransactionHandler(transactionUseCase domain.TransactionUseCase) *Transa
 }
 
 // RegisterRoutes registra las rutas de transacciones
-func (h *TransactionHandler) RegisterRoutes(router *gin.Engine, authMiddleware, transactionAuthMiddleware gin.HandlerFunc) {
-	transactions := router.Group("/api/transactions")
+func (h *TransactionHandler) RegisterRoutes(router *gin.RouterGroup, authMiddleware, transactionAuthMiddleware gin.HandlerFunc) {
+	transactions := router.Group("/transactions")
 	transactions.Use(authMiddleware)
 	{
 		transactions.POST("", h.CreateTransaction)

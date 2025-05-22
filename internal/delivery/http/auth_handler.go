@@ -20,8 +20,8 @@ func NewAuthHandler(authUseCase domain.AuthUseCase) *AuthHandler {
 	}
 }
 
-func (h *AuthHandler) RegisterRoutes(router *gin.Engine) {
-	auth := router.Group("/api/v1/auth")
+func (h *AuthHandler) RegisterRoutes(router *gin.RouterGroup) {
+	auth := router.Group("/auth")
 	{
 		auth.POST("/register", h.Register)
 		auth.POST("/login", h.Login)

@@ -21,8 +21,8 @@ func NewReportHandler(reportUseCase domain.ReportUseCase) *ReportHandler {
 }
 
 // RegisterRoutes registra las rutas de reportes
-func (h *ReportHandler) RegisterRoutes(router *gin.Engine, authMiddleware gin.HandlerFunc) {
-	reports := router.Group("/api/reports")
+func (h *ReportHandler) RegisterRoutes(router *gin.RouterGroup, authMiddleware gin.HandlerFunc) {
+	reports := router.Group("/reports")
 	reports.Use(authMiddleware)
 	{
 		reports.GET("/monthly-summary", h.GetMonthlySummary)

@@ -42,7 +42,7 @@ func (m *MockReportUseCase) GenerateTaxReportForDIAN(ctx context.Context, params
 func setupTestRouters(handler *ReportHandler) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	handler.RegisterRoutes(router, func(c *gin.Context) {
+	handler.RegisterRoutes(&router.RouterGroup, func(c *gin.Context) {
 		// Mock user for testing
 		user := &domain.User{
 			ID: uuid.New().String(),

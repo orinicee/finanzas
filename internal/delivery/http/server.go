@@ -3,7 +3,9 @@ package http
 import (
 	"fmt"
 	"log"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/orinicee/finanzas/internal/application/auth"
 	"github.com/orinicee/finanzas/internal/application/report"
@@ -26,6 +28,16 @@ type Server struct {
 func NewServer(cfg *config.Config, db *database.PostgresRepository) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
+
+	// Configurar CORS
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	server := &Server{
 		router: router,
@@ -61,30 +73,30 @@ func (s *Server) setupRoutes(
 	authUseCase domain.AuthUseCase,
 	transactionUseCase domain.TransactionUseCase,
 ) {
-	// Grupo de rutas API v1
-	v1 := s.router.Group("/api/v1")
-	{
-		// Health check
-		v1.GET("/health", func(c *gin.Context) {
-			c.JSON(200, gin.H{
-				"status": "ok",
-			})
+	// Health check (fuera del grupo v1 y sin autenticación)
+	s.router.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"status": "ok",
 		})
+	})
 
+	// Grupo de rutas API v1
+	api := s.router.Group("/api/v1")
+	{
 		// Rutas de autenticación
-		authHandler.RegisterRoutes(s.router)
+		authHandler.RegisterRoutes(api)
 
 		// Rutas de usuarios
-		userHandler.RegisterRoutes(s.router, middleware.AuthMiddleware(authUseCase))
+		userHandler.RegisterRoutes(api, middleware.AuthMiddleware(authUseCase))
 
 		// Rutas de transacciones
-		transactionHandler.RegisterRoutes(s.router,
+		transactionHandler.RegisterRoutes(api,
 			middleware.AuthMiddleware(authUseCase),
 			middleware.TransactionAuthMiddleware(transactionUseCase),
 		)
 
 		// Rutas de reportes
-		reportHandler.RegisterRoutes(s.router, middleware.AuthMiddleware(authUseCase))
+		reportHandler.RegisterRoutes(api, middleware.AuthMiddleware(authUseCase))
 	}
 }
 

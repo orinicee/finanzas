@@ -52,8 +52,8 @@ func NewUserHandler(userUseCase domain.UserUseCase, userRepo domain.UserReposito
 }
 
 // RegisterRoutes registra las rutas de usuarios
-func (h *UserHandler) RegisterRoutes(router *gin.Engine, authMiddleware gin.HandlerFunc) {
-	users := router.Group("/api/v1/users")
+func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup, authMiddleware gin.HandlerFunc) {
+	users := router.Group("/users")
 	{
 		// Rutas públicas
 		users.POST("", h.CreateUser)
