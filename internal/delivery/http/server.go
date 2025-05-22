@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/orinicee/finanzas/internal/application/auth"
+	"github.com/orinicee/finanzas/internal/application/report"
 	"github.com/orinicee/finanzas/internal/application/transaction"
 	"github.com/orinicee/finanzas/internal/application/user"
 	"github.com/orinicee/finanzas/internal/delivery/http/middleware"
@@ -37,14 +38,16 @@ func NewServer(cfg *config.Config, db *database.PostgresRepository) *Server {
 	authUseCase := auth.NewAuthUseCase(userRepo, cfg.JWTKey)
 	transactionRepo := postgres.NewTransactionRepository(db.GetDB())
 	transactionUseCase := transaction.NewTransactionUseCase(transactionRepo)
+	reportUseCase := report.NewReportUseCase(transactionRepo)
 
 	// Inicializar handlers
 	userHandler := NewUserHandler(userUseCase, userRepo)
 	authHandler := NewAuthHandler(authUseCase)
 	transactionHandler := NewTransactionHandler(transactionUseCase)
+	reportHandler := NewReportHandler(reportUseCase)
 
 	// Configurar rutas
-	server.setupRoutes(userHandler, authHandler, transactionHandler, authUseCase, transactionUseCase)
+	server.setupRoutes(userHandler, authHandler, transactionHandler, reportHandler, authUseCase, transactionUseCase)
 
 	return server
 }
@@ -54,6 +57,7 @@ func (s *Server) setupRoutes(
 	userHandler *UserHandler,
 	authHandler *AuthHandler,
 	transactionHandler *TransactionHandler,
+	reportHandler *ReportHandler,
 	authUseCase domain.AuthUseCase,
 	transactionUseCase domain.TransactionUseCase,
 ) {
@@ -78,6 +82,9 @@ func (s *Server) setupRoutes(
 			middleware.AuthMiddleware(authUseCase),
 			middleware.TransactionAuthMiddleware(transactionUseCase),
 		)
+
+		// Rutas de reportes
+		reportHandler.RegisterRoutes(s.router, middleware.AuthMiddleware(authUseCase))
 	}
 }
 

@@ -72,10 +72,10 @@ type TransactionUseCase interface {
 	GetTaxDeductibleTransactions(ctx context.Context, userID uuid.UUID) ([]*Transaction, error)
 }
 
-// ReportRepository define la interfaz para el repositorio de reportes
-type ReportRepository interface {
-}
-
 // ReportUseCase define las operaciones de negocio para reportes
 type ReportUseCase interface {
+	GenerateMonthlySummary(ctx context.Context, params MonthlySummaryParams) (MonthlySummaryResponse, error)
+	GetSpendingByCategory(ctx context.Context, params SpendingByCategoryParams) (SpendingByCategoryResponse, error)
+	GetBalanceSummary(ctx context.Context, params BalanceSummaryParams) (BalanceSummaryResponse, error)
+	GenerateTaxReportForDIAN(ctx context.Context, params TaxReportParams) (TaxReportResponse, error)
 }

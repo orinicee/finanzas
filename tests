@@ -9,3 +9,6 @@ go test -v ./internal/infrastructure/repository/postgres/...
 
 // Create test db
 psql -U postgres -c "CREATE DATABASE finanzas_test;"
+
+// test report_handler
+cd internal/delivery/http; go test -v -run "TestGetMonthlySummary|TestGetSpendingByCategory|TestGetBalanceSummary|TestGetTaxReport"
