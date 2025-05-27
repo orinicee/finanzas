@@ -42,14 +42,15 @@ func (m *MockUserRepository) FindByEmail(email string) (*domain.User, error) {
 	return nil, ErrUserNotFound
 }
 
-func (m *MockUserRepository) FindBySocialID(provider domain.AuthProvider, socialID string) (*domain.User, error) {
-	for _, user := range m.users {
-		if user.Provider == provider && user.SocialID == socialID {
-			return user, nil
-		}
-	}
-	return nil, ErrUserNotFound
-}
+// FindBySocialID implementa el método de la interfaz UserRepository
+// func (m *MockUserRepository) FindBySocialID(provider domain.AuthProvider, socialID string) (*domain.User, error) {
+// 	for _, user := range m.users {
+// 		if user.Provider == provider && user.SocialID == socialID {
+// 			return user, nil
+// 		}
+// 	}
+// 	return nil, ErrUserNotFound
+// }
 
 func (m *MockUserRepository) Update(user *domain.User) error {
 	if _, exists := m.users[user.ID]; !exists {

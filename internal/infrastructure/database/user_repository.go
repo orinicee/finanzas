@@ -57,14 +57,15 @@ func (r *userRepository) FindByEmail(email string) (*domain.User, error) {
 	return &user, nil
 }
 
-func (r *userRepository) FindBySocialID(provider domain.AuthProvider, socialID string) (*domain.User, error) {
-	var user domain.User
-	err := r.db.First(&user, "provider = ? AND social_id = ?", provider, socialID).Error
-	if err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
+// FindBySocialID implementa el método de la interfaz UserRepository
+// func (r *userRepository) FindBySocialID(provider domain.AuthProvider, socialID string) (*domain.User, error) {
+// 	var user domain.User
+// 	err := r.db.First(&user, "provider = ? AND social_id = ?", provider, socialID).Error
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return &user, nil
+// }
 
 func (r *userRepository) Update(user *domain.User) error {
 	return r.db.Save(user).Error

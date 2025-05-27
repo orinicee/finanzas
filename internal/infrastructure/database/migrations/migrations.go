@@ -19,6 +19,16 @@ func RunMigrations(db *gorm.DB) error {
 		return err
 	}
 
+	// Verificar si existe la columna password y eliminarla si existe
+	var columnExists bool
+	db.Raw("SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'password')").Scan(&columnExists)
+
+	if columnExists {
+		if err := db.Exec("ALTER TABLE users DROP COLUMN password").Error; err != nil {
+			return err
+		}
+	}
+
 	log.Println("Migraciones completadas exitosamente")
 	return nil
 }

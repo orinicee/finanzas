@@ -4,8 +4,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/orinicee/finanzas/internal/application/auth"
 	"github.com/orinicee/finanzas/internal/domain"
 	"github.com/orinicee/finanzas/internal/domain/messages"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // CreateUserRequest representa la estructura de la solicitud de creación de usuario
@@ -98,10 +100,17 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
+	// Crear hash de la contraseña
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": messages.ErrCreateUser})
+		return
+	}
+
 	user := &domain.User{
 		FullName:       req.FullName,
 		Email:          req.Email,
-		Password:       req.Password,
+		Password:       string(hashedPassword),
 		DocumentType:   req.DocumentType,
 		DocumentNumber: req.DocumentNumber,
 		TaxRegime:      req.TaxRegime,
@@ -124,7 +133,35 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": messages.SuccessUserCreated})
+	// Generar tokens usando Login ya que el usuario ya está creado
+	authUseCase := auth.NewAuthUseCase(h.userRepo, "your-secret-key") // TODO: Obtener la clave JWT de la configuración
+	tokens, err := authUseCase.Login(&domain.AuthCredentials{
+		Email:    req.Email,
+		Password: req.Password,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": messages.ErrCreateUser})
+		return
+	}
+
+	// Devolver la información del usuario y los tokens
+	c.JSON(http.StatusCreated, gin.H{
+		"user": gin.H{
+			"id":              user.ID,
+			"full_name":       user.FullName,
+			"email":           user.Email,
+			"document_type":   user.DocumentType,
+			"document_number": user.DocumentNumber,
+			"tax_regime":      user.TaxRegime,
+			"person_type":     user.PersonType,
+			"city":            user.City,
+			"department":      user.Department,
+			"address":         user.Address,
+			"phone":           user.Phone,
+		},
+		"access_token":  tokens.AccessToken,
+		"refresh_token": tokens.RefreshToken,
+	})
 }
 
 // GetUser maneja la obtención de un usuario por ID

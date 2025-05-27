@@ -1,6 +1,7 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -25,7 +26,6 @@ func (h *AuthHandler) RegisterRoutes(router *gin.RouterGroup) {
 	{
 		auth.POST("/register", h.Register)
 		auth.POST("/login", h.Login)
-		auth.POST("/social", h.SocialAuth)
 		auth.POST("/refresh", h.RefreshToken)
 		auth.POST("/logout", h.Logout)
 	}
@@ -39,6 +39,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
+	fmt.Printf("📥 Datos recibidos en el backend (Register): %+v\n", credentials)
+
 	token, err := h.authUseCase.Register(&credentials)
 	if err != nil {
 		if err == domain.ErrEmailAlreadyExists {
@@ -46,10 +48,30 @@ func (h *AuthHandler) Register(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al registrar el usuario"})
+		fmt.Printf("❌ Error en authUseCase.Register: %v\n", err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, token)
+	// Obtener el usuario recién creado
+	user, err := h.authUseCase.ValidateToken(token.AccessToken)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al obtener información del usuario"})
+		return
+	}
+
+	response := gin.H{
+		"user": gin.H{
+			"id":    user.ID,
+			"email": user.Email,
+		},
+		"access_token":  token.AccessToken,
+		"refresh_token": token.RefreshToken,
+		"token_type":    token.TokenType,
+		"expires_in":    token.ExpiresIn,
+	}
+
+	fmt.Printf("📤 Respuesta enviada al front (Register): %+v\n", response)
+	c.JSON(http.StatusCreated, response)
 }
 
 // Login maneja el inicio de sesión de usuarios
@@ -70,24 +92,25 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, token)
-}
-
-// SocialAuth maneja la autenticación con proveedores sociales
-func (h *AuthHandler) SocialAuth(c *gin.Context) {
-	var credentials domain.SocialAuthCredentials
-	if err := c.ShouldBindJSON(&credentials); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Error al decodificar el cuerpo de la solicitud"})
-		return
-	}
-
-	token, err := h.authUseCase.SocialAuth(&credentials)
+	user, err := h.authUseCase.ValidateToken(token.AccessToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Error en la autenticación social"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al obtener información del usuario"})
 		return
 	}
 
-	c.JSON(http.StatusOK, token)
+	response := gin.H{
+		"user": gin.H{
+			"id":    user.ID,
+			"email": user.Email,
+		},
+		"access_token":  token.AccessToken,
+		"refresh_token": token.RefreshToken,
+		"token_type":    token.TokenType,
+		"expires_in":    token.ExpiresIn,
+	}
+
+	fmt.Printf("📤 Respuesta enviada al front (Login): %+v\n", response)
+	c.JSON(http.StatusCreated, response)
 }
 
 // RefreshToken maneja la renovación de tokens
@@ -111,7 +134,14 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, token)
+	response := gin.H{
+		"access_token":  token.AccessToken,
+		"refresh_token": token.RefreshToken,
+		"token_type":    token.TokenType,
+		"expires_in":    token.ExpiresIn,
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // Logout maneja el cierre de sesión

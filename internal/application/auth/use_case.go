@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/orinicee/finanzas/internal/domain"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -44,6 +45,7 @@ func (uc *authUseCase) Register(credentials *domain.AuthCredentials) (*domain.Au
 
 	// Crear nuevo usuario
 	user := &domain.User{
+		ID:       uuid.New().String(),
 		Email:    credentials.Email,
 		Password: string(hashedPassword),
 	}
@@ -72,41 +74,42 @@ func (uc *authUseCase) Login(credentials *domain.AuthCredentials) (*domain.AuthT
 	return uc.generateTokens(user)
 }
 
-func (uc *authUseCase) SocialAuth(credentials *domain.SocialAuthCredentials) (*domain.AuthToken, error) {
-	var user *domain.User
-	var err error
+// SocialAuth maneja la autenticación con proveedores sociales
+// func (uc *authUseCase) SocialAuth(credentials *domain.SocialAuthCredentials) (*domain.AuthToken, error) {
+// 	var user *domain.User
+// 	var err error
 
-	// Validar token según el proveedor
-	switch credentials.Provider {
-	case domain.ProviderGoogle:
-		user, err = uc.validateGoogleToken(credentials.IDToken)
-	case domain.ProviderApple:
-		user, err = uc.validateAppleToken(credentials.IDToken)
-	default:
-		return nil, errors.New("proveedor no soportado")
-	}
+// 	// Validar token según el proveedor
+// 	switch credentials.Provider {
+// 	case domain.ProviderGoogle:
+// 		user, err = uc.validateGoogleToken(credentials.IDToken)
+// 	case domain.ProviderApple:
+// 		user, err = uc.validateAppleToken(credentials.IDToken)
+// 	default:
+// 		return nil, errors.New("proveedor no soportado")
+// 	}
 
-	if err != nil {
-		return nil, err
-	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	// Buscar usuario existente o crear uno nuevo
-	existingUser, err := uc.userRepo.FindBySocialID(credentials.Provider, user.SocialID)
-	if err != nil {
-		if err == ErrUserNotFound {
-			// Crear nuevo usuario
-			if err := uc.userRepo.Create(user); err != nil {
-				return nil, err
-			}
-			existingUser = user
-		} else {
-			return nil, err
-		}
-	}
+// 	// Buscar usuario existente o crear uno nuevo
+// 	existingUser, err := uc.userRepo.FindBySocialID(credentials.Provider, user.SocialID)
+// 	if err != nil {
+// 		if err == ErrUserNotFound {
+// 			// Crear nuevo usuario
+// 			if err := uc.userRepo.Create(user); err != nil {
+// 				return nil, err
+// 			}
+// 			existingUser = user
+// 		} else {
+// 			return nil, err
+// 		}
+// 	}
 
-	// Generar tokens
-	return uc.generateTokens(existingUser)
-}
+// 	// Generar tokens
+// 	return uc.generateTokens(existingUser)
+// }
 
 func (uc *authUseCase) RefreshToken(refreshToken string) (*domain.AuthToken, error) {
 	// Obtener userID del refresh token
@@ -190,22 +193,28 @@ func (uc *authUseCase) generateTokens(user *domain.User) (*domain.AuthToken, err
 		return nil, err
 	}
 
+	// Calcular expires_in en segundos
+	expiresIn := int64(accessTokenExp.Sub(time.Now()).Seconds())
+
 	return &domain.AuthToken{
 		AccessToken:  accessTokenString,
 		TokenType:    "Bearer",
 		ExpiresAt:    accessTokenExp,
+		ExpiresIn:    expiresIn,
 		RefreshToken: refreshTokenString,
 	}, nil
 }
 
-func (uc *authUseCase) validateGoogleToken(idToken string) (*domain.User, error) {
-	// TODO: Implementar validación de token de Google
-	// Por ahora retornamos un error
-	return nil, errors.New("validación de Google no implementada")
-}
+// validateGoogleToken valida el token de Google
+// func (uc *authUseCase) validateGoogleToken(idToken string) (*domain.User, error) {
+// 	// TODO: Implementar validación de token de Google
+// 	// Por ahora retornamos un error
+// 	return nil, errors.New("validación de Google no implementada")
+// }
 
-func (uc *authUseCase) validateAppleToken(idToken string) (*domain.User, error) {
-	// TODO: Implementar validación de token de Apple
-	// Por ahora retornamos un error
-	return nil, errors.New("validación de Apple no implementada")
-}
+// validateAppleToken valida el token de Apple
+// func (uc *authUseCase) validateAppleToken(idToken string) (*domain.User, error) {
+// 	// TODO: Implementar validación de token de Apple
+// 	// Por ahora retornamos un error
+// 	return nil, errors.New("validación de Apple no implementada")
+// }

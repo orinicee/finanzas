@@ -15,7 +15,7 @@ type UserRepository interface {
 	Create(user *User) error
 	FindByID(id string) (*User, error)
 	FindByEmail(email string) (*User, error)
-	FindBySocialID(provider AuthProvider, socialID string) (*User, error)
+	// FindBySocialID(provider AuthProvider, socialID string) (*User, error)
 	Update(user *User) error
 	Delete(id string) error
 	List() ([]*User, error)
@@ -38,7 +38,7 @@ type UserUseCase interface {
 type AuthUseCase interface {
 	Register(credentials *AuthCredentials) (*AuthToken, error)
 	Login(credentials *AuthCredentials) (*AuthToken, error)
-	SocialAuth(credentials *SocialAuthCredentials) (*AuthToken, error)
+	// SocialAuth(credentials *SocialAuthCredentials) (*AuthToken, error)
 	RefreshToken(refreshToken string) (*AuthToken, error)
 	Logout(refreshToken string) error
 	ValidateToken(token string) (*User, error)

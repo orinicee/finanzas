@@ -106,29 +106,33 @@ func (r *PostgresRepository) WithTransaction(ctx context.Context, fn func(tx *go
 }
 
 // FindBySocialID implementa el método de la interfaz UserRepository
-func (r *PostgresRepository) FindBySocialID(provider domain.AuthProvider, socialID string) (*domain.User, error) {
-	var user domain.User
-	if err := r.db.First(&user, "provider = ? AND social_id = ?", provider, socialID).Error; err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
+// func (r *PostgresRepository) FindBySocialID(provider domain.AuthProvider, socialID string) (*domain.User, error) {
+// 	var user domain.User
+// 	if err := r.db.First(&user, "provider = ? AND social_id = ?", provider, socialID).Error; err != nil {
+// 		return nil, err
+// 	}
+// 	return &user, nil
+// }
 
 // SaveRefreshToken implementa el método de la interfaz UserRepository
 func (r *PostgresRepository) SaveRefreshToken(userID string, token string, expiresAt time.Time) error {
-	refreshToken := struct {
-		Token     string `gorm:"primaryKey"`
-		UserID    string `gorm:"index"`
-		ExpiresAt time.Time
-	}{
-		Token:     token,
-		UserID:    userID,
-		ExpiresAt: expiresAt,
+	// Definir la estructura de la tabla de refresh tokens
+	type RefreshToken struct {
+		Token     string    `gorm:"primaryKey;column:token"`
+		UserID    string    `gorm:"index;column:user_id"`
+		ExpiresAt time.Time `gorm:"column:expires_at"`
 	}
 
 	// Auto-migrar la tabla de refresh tokens
-	if err := r.db.AutoMigrate(&refreshToken); err != nil {
+	if err := r.db.AutoMigrate(&RefreshToken{}); err != nil {
 		return err
+	}
+
+	// Crear el nuevo refresh token
+	refreshToken := RefreshToken{
+		Token:     token,
+		UserID:    userID,
+		ExpiresAt: expiresAt,
 	}
 
 	return r.db.Create(&refreshToken).Error
@@ -136,12 +140,13 @@ func (r *PostgresRepository) SaveRefreshToken(userID string, token string, expir
 
 // GetRefreshToken implementa el método de la interfaz UserRepository
 func (r *PostgresRepository) GetRefreshToken(token string) (string, error) {
-	var refreshToken struct {
-		Token     string `gorm:"primaryKey"`
-		UserID    string `gorm:"index"`
-		ExpiresAt time.Time
+	type RefreshToken struct {
+		Token     string    `gorm:"primaryKey;column:token"`
+		UserID    string    `gorm:"index;column:user_id"`
+		ExpiresAt time.Time `gorm:"column:expires_at"`
 	}
 
+	var refreshToken RefreshToken
 	if err := r.db.First(&refreshToken, "token = ? AND expires_at > ?", token, time.Now()).Error; err != nil {
 		return "", err
 	}
@@ -150,9 +155,11 @@ func (r *PostgresRepository) GetRefreshToken(token string) (string, error) {
 
 // DeleteRefreshToken implementa el método de la interfaz UserRepository
 func (r *PostgresRepository) DeleteRefreshToken(token string) error {
-	return r.db.Delete(&struct {
-		Token     string `gorm:"primaryKey"`
-		UserID    string `gorm:"index"`
-		ExpiresAt time.Time
-	}{}, "token = ?", token).Error
+	type RefreshToken struct {
+		Token     string    `gorm:"primaryKey;column:token"`
+		UserID    string    `gorm:"index;column:user_id"`
+		ExpiresAt time.Time `gorm:"column:expires_at"`
+	}
+
+	return r.db.Delete(&RefreshToken{}, "token = ?", token).Error
 }
